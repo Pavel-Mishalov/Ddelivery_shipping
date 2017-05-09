@@ -34,14 +34,14 @@ if ( in_array( 'woocommerce/woocommerce.php', apply_filters( 'active_plugins', g
  
                     $this->availability = 'including';
                     $this->countries = array(
-                        'RU',
-                        'UA'
+                        'UA',
+                        'RU'
                         );
  
                     $this->init();
  
                     $this->enabled = isset( $this->settings['enabled'] ) ? $this->settings['enabled'] : 'yes';
-                    $this->title = isset( $this->settings['title'] ) ? $this->settings['title'] : 'Собственная доставка';
+                    $this->title = isset( $this->settings['title'] ) ? $this->settings['title'] : 'Самовывоз';
                 }
 
                 function init()
@@ -49,6 +49,7 @@ if ( in_array( 'woocommerce/woocommerce.php', apply_filters( 'active_plugins', g
                     // Load the settings API
                     $this->init_form_fields();
                     $this->init_settings();
+                    update_option( 'mis_api_ddelivery', $this->settings['api_key']);
  
                     // Save settings in admin if you have any defined
                     add_action( 'woocommerce_update_options_shipping_' . $this->id, array( $this, 'process_admin_options' ) );
@@ -58,27 +59,43 @@ if ( in_array( 'woocommerce/woocommerce.php', apply_filters( 'active_plugins', g
                 { 
  
                     $this->form_fields = array(
- 
                      'enabled' => array(
-                          'title' => __( 'Выводить', 'misShip' ),
-                          'type' => 'checkbox',
-                          'description' => __( 'Включить данный метод в список доставки', 'misShip' ),
-                          'default' => 'no'
-                          ),
- 
+                        'title' => __( 'Выводить', 'misShip' ),
+                        'type' => 'checkbox',
+                        'description' => __( 'Включить данный метод в список доставки', 'misShip' ),
+                        'default' => 'no'
+                      ),
                      'title' => array(
                         'title' => __( 'Название', 'misShip' ),
-                          'type' => 'text',
-                          'description' => __( 'Введите название данного метода доставки', 'misShip' ),
-                          'placeholder' => __( 'Введите название', 'misShip' ),
-                          ),
- 
-                     );
+                        'type' => 'text',
+                        'description' => __( 'Введите название данного метода доставки', 'misShip' ),
+                        'placeholder' => __( 'Введите название', 'misShip' ),
+                      ),
+                     'api_key' => array(
+                        'title' => __( 'API ключ', 'misShip' ),
+                        'type' => 'text',
+                        'description' => __( 'Введите API-ключ с личного кабинета DDelivery', 'misShip' ),
+                        'placeholder' => __( 'Введите ключ', 'misShip' ),
+                      ),
+                    );
  
                 }
 
                 public function calculate_shipping( $package = array() )
-                {/*
+                {
+  PC::debug($package, 'package');
+                  if( $package['destination']['state'] != 'Выберите область...' &&
+                      $package['destination']['state'] != '' ){
+                    $rate = array(
+                          'id' => $this->id,
+                          'label' => $this->title,
+                          'cost' => $package['destination']['postcode']
+                      );
+   
+                    $this->add_rate( $rate );
+                  }
+
+                /*
                     
                     $totalCost = 0;
                     $deliveryCost = $this->settings['deliveryCost'];
@@ -107,13 +124,6 @@ if ( in_array( 'woocommerce/woocommerce.php', apply_filters( 'active_plugins', g
    
                       $this->add_rate( $rate );
                     }*/
-                    $rate = array(
-                          'id' => $this->id,
-                          'label' => $this->title,
-                          'cost' => 0
-                      );
-   
-                      $this->add_rate( $rate );
                 }
             }
         }
@@ -226,13 +236,6 @@ function mis_map_point_callback(){
   }
 
   set_transient( 'map_points', $answer, HOUR_IN_SECONDS );
-  echo json_encode( get_transient('map_points') );
-}
-
-add_action('wp_ajax_mis_map_edit', 'mis_map_edit_callback');
-add_action('wp_ajax_nopriv_mis_map_edit', 'mis_map_edit_callback');
-
-function mis_map_edit_callback(){
   $args = get_transient('map_points');
   $answer = array();
 
@@ -240,6 +243,48 @@ function mis_map_edit_callback(){
     for( $j=0; $j<count($args[$i]->points); $j++){
       if( $args[$i]->points[$j]->status == 2 ){
         array_push( $answer, $args[$i]->points[$j] );
+      }
+    }
+  }
+  echo json_encode( $answer );
+}
+
+add_action('wp_ajax_mis_map_edit', 'mis_map_edit_callback');
+add_action('wp_ajax_nopriv_mis_map_edit', 'mis_map_edit_callback');
+
+function mis_map_edit_callback(){
+  $city_arr = explode( '|', $_POST['city']);
+  $answer = array();
+  $pickup = array();
+
+  foreach ($city_arr as $key => $city) {
+    $url = 'http://cabinet.ddelivery.ru:80/api/v1/' .
+              '1ed148cc31f586fd4c2e98153437bace/calculator.json?' .
+              'type=1&' .
+              'city_to=' . $city .'&' .
+              'dimension_side1=10&' .
+              'dimension_side2=10&' .
+              'dimension_side3=10&' .
+              'weight=1&' .
+              'declared_price=1000&' .
+              'payment_price=1000';
+    $args = array();
+    $res = wp_remote_get($url, $args);
+    $res = wp_remote_retrieve_body($res);
+    array_push( $pickup, json_decode($res) );
+  }
+
+  $points = get_transient('map_points');
+
+  foreach ( $points[0]->points as $key => $value ) {
+    foreach ($pickup as $k => $v) {
+      foreach ($v->response as $k2 => $company) {   
+        if( intval( $value->company_id ) == intval( $company->delivery_company ) ){
+          $x = (array)$value;
+          $x['price'] = $company->total_price;
+          $x['pickup_date'] = $company->pickup_date;
+          array_push( $answer, $x );
+        }
       }
     }
   }
@@ -251,9 +296,14 @@ function custom_override_checkout_fields ( $fields ) {
   $fields['billing']['billing_one']['label'] = 'Область/регион';
   $fields['billing']['billing_one']['required'] = true;
   $fields['billing']['billing_one']['type'] = 'country';
-  $fields['billing']['billing_one']['class'] = array('form-row-wide', 'update_totals_on_change', 'address-field');
-  unset( $fields['billing']['billing_postcode'] );
-  unset( $fields['billing']['billing_company'] );
+  $fields['billing']['billing_one']['class'] = $fields['billing']['billing_country']['class'];
+  $fields['billing']['billing_postcode'] ='';
+  $fields['billing']['billing_postcode']['class'][] = 'mis_field_hidden';
+  $fields['billing']['billing_company'] = '';
+  $fields['billing']['billing_company']['class'][] = 'mis_field_hidden';
+  $fields['billing']['billing_pickup']['class'] = array('update_totals_on_change', 'mis_field_hidden');
+  $fields['billing']['billing_pickup']['type'] = 'text';
+  //$fields['shipping'] = '';
 
   PC::debug($fields['billing'], 'billing');
   PC::debug($fields['shipping'], 'shipping');

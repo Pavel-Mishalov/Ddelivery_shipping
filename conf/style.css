@@ -1,16 +1,63 @@
 .map{
-	position: fixed;
-	left: 0;
-	top: 0;
-	width: 100%;
-	height: 100%;
-	background: rgba(0, 0, 0, 0.1);
-	display: none;
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.1);
+  display: none;
+}
+#all-map{
+  position: absolute;
+  width: 50%;
+  height: 50%;
+  top: 20%;
+  left: 25%;
+  -webkit-box-shadow: 0px 0px 15px 5px rgba(0,0,0,0.6);
+  -moz-box-shadow: 0px 0px 15px 5px rgba(0,0,0,0.6);
+  box-shadow: 0px 0px 15px 5px rgba(0,0,0,0.6);
 }
 #map{
-	position: absolute;
-	width: 50%;
-	height: 50%;
-	top: 25%;
-	left: 25%;
+  width: 100%;
+  height: calc( 100% - 40px );
+}
+#map-close{
+  width: 100%;
+  height: 40px;
+  background: #5E5271;
+}
+#map-close p.mis-close-icon{
+  font-style: italic;
+  font-family: Impact;
+  float: right;
+  font-weight: bold;
+}
+#map-close p.mis-close-icon:hover{
+  cursor: pointer;
+}
+#map-close p{
+  font-size: 20px;
+  line-height: 0;
+  padding: 20px;
+  margin: 0;
+  font-family: PTSansRegular;
+  float: left;
+  color: #fff;
+}
+.mis_field_hidden{
+  display: none !important;
+}
+.my-hint{
+  width: 130px;
+}
+.my-hint div{
+  background: white;
+  padding: 3px;
+  color: grey;
+  font-size: 11px;
+  float: left;
+}
+.my-hint2{
+  background: green !important;
+  color: white !important;
 }
