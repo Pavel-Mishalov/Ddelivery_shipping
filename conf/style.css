@@ -9,10 +9,10 @@
 }
 #all-map{
   position: absolute;
-  width: 50%;
-  height: 50%;
-  top: 20%;
-  left: 25%;
+  width: 80%;
+  height: 80%;
+  top: 7%;
+  left: 10%;
   -webkit-box-shadow: 0px 0px 15px 5px rgba(0,0,0,0.6);
   -moz-box-shadow: 0px 0px 15px 5px rgba(0,0,0,0.6);
   box-shadow: 0px 0px 15px 5px rgba(0,0,0,0.6);
@@ -61,3 +61,74 @@
   background: green !important;
   color: white !important;
 }
+  .ballon{
+    background: white;
+    width: 350px;
+  }
+  .ballon-header{
+    background: #4B0C41;
+    height: 30px;
+  }
+  .ballon-header a{
+    float: right;
+    background: #FF5C0F !important;
+    color: white !important;
+    padding: 15px;
+    margin: 0;
+    font-family: PTSansRegular;
+    line-height: 0;
+  }
+  .ballon-header span{
+    line-height: 0;
+    padding: 15px;
+    float: left;
+    color: #fff;
+  }
+  table.shop-setting{
+    width: 350px;
+    padding: 10px;
+    font-family: PTSansBold;
+    font-size: 13px;
+  }
+  table.shop-setting td.mis-key{
+    font-weight: 600;
+    text-align: right;
+    width: 100px;
+    vertical-align: top;
+  }
+  table.shop-setting td.mis-value{
+    text-align: left;
+    width: 250px;
+    vertical-align: top;
+  }
+  .btn-price button{
+    font-size: 13px;
+    padding: 15px;
+    background: #00a300;
+    line-height: 0;
+    color: white;
+    float: right;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+  .btn-price button:hover{
+    cursor: pointer;
+  }
+  button.mis-btn:hover + p.pickup-price{
+    color: #00a300;
+  }
+  .btn-price{
+    overflow: hidden;
+    border: 1px solid #00a300;
+    margin: 20px 20px 0 20px;
+  }
+  .btn-price p{
+    text-align: center;
+    font-size: 13px;
+    line-height: 0;
+    padding: 15px;
+    color: grey;
+    float: left;
+    width: 150px;
+    margin: 0;
+  }

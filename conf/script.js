@@ -43,6 +43,8 @@ function mis_edit_city(value){
               iterator++;
             }
           );
+        jQuery('body.woocommerce-checkout #billing_one_field select').removeAttr('disabled');
+        jQuery('body').trigger('update_checkout');
       }
     });
   }
@@ -76,12 +78,23 @@ function destMap(){
   jQuery('body.woocommerce-checkout #shipping_method_0_mis_ddelivery_method').removeAttr("checked");
 }
 
+function get_point(price){
+  jQuery('body.woocommerce-checkout .map').css('display', 'none');
+  jQuery('body.woocommerce-checkout #map').html('');
+  jQuery('body.woocommerce-checkout #billing_postcode').attr('value', price );
+  jQuery('body').trigger('update_checkout');
+}
+
 jQuery( document ).ready( function ( $ ) {
 
   $('body.woocommerce-checkout #billing_state_field').css('display', 'none');
   $('#billing_one_field select').attr('onchange', 'mis_edit_state(this.value)');
 
+  $('body.woocommerce-checkout #billing_one_field select').attr('disabled','disabled');
   $('body.woocommerce-checkout #billing_city').attr('value', '');
+  $('body.woocommerce-checkout #billing_city').keydown(function(){
+    $('body.woocommerce-checkout #billing_one_field select').attr('disabled','disabled');
+  });
   $('body.woocommerce-checkout #billing_state').attr('value', '');
   $('body.woocommerce-checkout #billing_postcode').attr('value', '');
   $('body.woocommerce-checkout #billing_city').attr('onchange', 'mis_edit_city(this.value)');

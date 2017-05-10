@@ -83,9 +83,10 @@ if ( in_array( 'woocommerce/woocommerce.php', apply_filters( 'active_plugins', g
 
                 public function calculate_shipping( $package = array() )
                 {
-  PC::debug($package, 'package');
+
                   if( $package['destination']['state'] != 'Выберите область...' &&
-                      $package['destination']['state'] != '' ){
+                      $package['destination']['state'] != '' &&
+                      !empty( get_transient('map_points')[0]->points[0]->company_id  ) ){
                     $rate = array(
                           'id' => $this->id,
                           'label' => $this->title,
@@ -94,36 +95,6 @@ if ( in_array( 'woocommerce/woocommerce.php', apply_filters( 'active_plugins', g
    
                     $this->add_rate( $rate );
                   }
-
-                /*
-                    
-                    $totalCost = 0;
-                    $deliveryCost = $this->settings['deliveryCost'];
-
-                    foreach ($package['contents'] as $item_id => $value) {
-                        $_product = $value['data'];
-                        $totalCost += $_product->get_price() * $value['quantity'];
-                    }
-
-                    $minTotalCost = $this->settings['minCost'];
-                    $maxTotalCost = $this->settings['maxCost'];
-
-                    if( $maxTotalCost < $totalCost ){
-                      $rate = array(
-                          'id' => $this->id,
-                          'label' => $this->title,
-                          'cost' => 0
-                      );
-                      $this->add_rate( $rate );
-                    }elseif( $maxTotalCost > $totalCost && $minTotalCost < $totalCost ){
-                      $rate = array(
-                          'id' => $this->id,
-                          'label' => $this->title,
-                          'cost' => $deliveryCost
-                      );
-   
-                      $this->add_rate( $rate );
-                    }*/
                 }
             }
         }
@@ -236,7 +207,7 @@ function mis_map_point_callback(){
   }
 
   set_transient( 'map_points', $answer, HOUR_IN_SECONDS );
-  $args = get_transient('map_points');
+  $args = $answer;
   $answer = array();
 
   for( $i=0; $i<count($args); $i++){
@@ -246,28 +217,53 @@ function mis_map_point_callback(){
       }
     }
   }
+
+  //set_transient( 'map_points', $answer, HOUR_IN_SECONDS );
   echo json_encode( $answer );
+}
+
+add_action('wp_ajax_mis_empty_point', 'mis_empty_point_callback');
+add_action('wp_ajax_nopriv_mis_empty_point', 'mis_empty_point_callback');
+
+function mis_empty_point_callback(){
+  set_transient( 'map_points', array(), HOUR_IN_SECONDS );
+  echo get_transient( 'map_points' );
 }
 
 add_action('wp_ajax_mis_map_edit', 'mis_map_edit_callback');
 add_action('wp_ajax_nopriv_mis_map_edit', 'mis_map_edit_callback');
 
 function mis_map_edit_callback(){
+  global $woocommerce;
+  $items = $woocommerce->cart->get_cart();
+  $weight = 0;
+  $dimensions1 = 0;
+  $dimensions2 = 0;
+  $dimensions3 = 0;
+  $payment_price = 0;
+  foreach ($items as $key => $item) {
+    $product = wc_get_product($item['product_id']);
+    $weight += $product->get_weight() * $item['quantity'];
+    $dimensions1 += $product->get_length() * $item['quantity'];
+    $dimensions2 += $product->get_width() * $item['quantity'];
+    $dimensions3 += $product->get_height() * $item['quantity'];
+    $payment_price += $item['line_total'];
+  }
   $city_arr = explode( '|', $_POST['city']);
   $answer = array();
   $pickup = array();
 
   foreach ($city_arr as $key => $city) {
-    $url = 'http://cabinet.ddelivery.ru:80/api/v1/' .
-              '1ed148cc31f586fd4c2e98153437bace/calculator.json?' .
+    $url = 'http://cabinet.ddelivery.ru/api/v1/' .
+              get_option("mis_api_ddelivery") . '/calculator.json?' .
               'type=1&' .
               'city_to=' . $city .'&' .
-              'dimension_side1=10&' .
-              'dimension_side2=10&' .
-              'dimension_side3=10&' .
-              'weight=1&' .
-              'declared_price=1000&' .
-              'payment_price=1000';
+              'dimension_side1=' . $dimensions1 . '&' .
+              'dimension_side2=' . $dimensions2 . '&' .
+              'dimension_side3=' . $dimensions3 . '&' .
+              'weight=' . $weight . '&' .
+              'declared_price=' . $payment_price . '&' .
+              'payment_price=' . $payment_price;
     $args = array();
     $res = wp_remote_get($url, $args);
     $res = wp_remote_retrieve_body($res);
@@ -305,8 +301,6 @@ function custom_override_checkout_fields ( $fields ) {
   $fields['billing']['billing_pickup']['type'] = 'text';
   //$fields['shipping'] = '';
 
-  PC::debug($fields['billing'], 'billing');
-  PC::debug($fields['shipping'], 'shipping');
   return $fields;
 } // End custom_override_checkout_fields()
 
