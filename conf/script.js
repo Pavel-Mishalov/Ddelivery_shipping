@@ -15,7 +15,7 @@ function mis_edit_city(value){
         jQuery('body.woocommerce-checkout #billing_state').attr('value', '');
       },
       success: function(res){
-        res = JSON.parse( res.slice(0,-1) );
+        res = JSON.parse( res );
         jQuery('#billing_one_field select').html('<option value="">Выберите область...</option>');
         var array_region = res.options;
         var iterator = 0;
@@ -67,7 +67,6 @@ function mis_edit_state(select){
       "\/wp-admin\/admin-ajax.php",
       data,
       function(res){
-        console.log(res);
       }
     );
 }
@@ -78,10 +77,24 @@ function destMap(){
   jQuery('body.woocommerce-checkout #shipping_method_0_mis_ddelivery_method').removeAttr("checked");
 }
 
-function get_point(price){
+function get_point(price, address){
   jQuery('body.woocommerce-checkout .map').css('display', 'none');
   jQuery('body.woocommerce-checkout #map').html('');
-  jQuery('body.woocommerce-checkout #billing_postcode').attr('value', price );
+  data = {
+    action: 'mis_edit_shipping',
+    mis_price: price,
+    mis_address: address
+  }
+
+  jQuery.post(
+      "\/wp-admin\/admin-ajax.php",
+      data,
+      function(res){
+        console.log(res);
+        alert('good');
+      }
+    );
+
   jQuery('body').trigger('update_checkout');
 }
 
@@ -96,7 +109,6 @@ jQuery( document ).ready( function ( $ ) {
     $('body.woocommerce-checkout #billing_one_field select').attr('disabled','disabled');
   });
   $('body.woocommerce-checkout #billing_state').attr('value', '');
-  $('body.woocommerce-checkout #billing_postcode').attr('value', '');
   $('body.woocommerce-checkout #billing_city').attr('onchange', 'mis_edit_city(this.value)');
     var as = $('#billing_one_field select option').map(function(index, element){
         if(index==0){

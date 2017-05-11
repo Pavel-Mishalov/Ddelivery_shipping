@@ -83,14 +83,16 @@ if ( in_array( 'woocommerce/woocommerce.php', apply_filters( 'active_plugins', g
 
                 public function calculate_shipping( $package = array() )
                 {
+                  $pickup_cost = $package['destination']['mis_custom_shipping_cost'];
+                  $pickup_point = $package['destination']['mis_custom_shipping_point'];
 
                   if( $package['destination']['state'] != 'Выберите область...' &&
                       $package['destination']['state'] != '' &&
                       !empty( get_transient('map_points')[0]->points[0]->company_id  ) ){
                     $rate = array(
                           'id' => $this->id,
-                          'label' => $this->title,
-                          'cost' => $package['destination']['postcode']
+                          'label' => $this->title . $pickup_point,
+                          'cost' => $pickup_cost
                       );
    
                     $this->add_rate( $rate );
@@ -107,71 +109,7 @@ if ( in_array( 'woocommerce/woocommerce.php', apply_filters( 'active_plugins', g
         return $methods;
     }
  
-    add_filter( 'woocommerce_shipping_methods', 'add_mis_local_shipping_method' );
- 
-    function mis_shippining_validate_order( $posted )   {
- /*
-        $packages = WC()->shipping->get_packages();
- 
-        $chosen_methods = WC()->session->get( 'chosen_shipping_methods' );
-         
-        if( is_array( $chosen_methods ) && in_array( 'mis_custom_method', $chosen_methods ) ) {
-             
-            foreach ( $packages as $i => $package ) {
- 
-                if ( $chosen_methods[ $i ] != "mis_custom_method" ) {
-                             
-                    continue;
-                             
-                }
-                
-                $Mis_Custom_Shippining_method = new Mis_Custom_Shippining_method();
-                $totalCostLimit = (int) $Mis_Custom_Shippining_method->settings['minCost'];
-                $totalCost = 0;
- 
-                foreach ( $package['contents'] as $item_id => $values ){
-                  $_product = $values['data'];
-                  $totalCost += $_product->get_price() * $values['quantity'];
-                }
-
-                $allTownState = array();
-                $file = file( plugin_dir_path( __FILE__ ) . $Mis_Custom_Shippining_method->settings['state'] . '.txt' );
-                foreach( $file as $value ):
-                    $allTownState[] = trim($value);
-                endforeach;
-                
-                if( $totalCostLimit > $totalCost ) {
- 
-                        $message = sprintf( 'Просим прошения, для предоставления услуги "'.$Mis_Custom_Shippining_method->title.'" неибходимо сделать минимальный заказ на '.$totalCostLimit.' рублей' );
-                             
-                        $messageType = "error";
- 
-                        if( ! wc_has_notice( $message, $messageType ) ) {
-                         
-                            wc_add_notice( $message, $messageType );
-                      
-                        }
-
-                }elseif( !in_array( $package['destination']['city'], $allTownState ) ){
- 
-                        $message = sprintf( 'Просим прошения, услуга "'.$Mis_Custom_Shippining_method->title.'" предоставляется только на области ' . $Mis_Custom_Shippining_method->settings['state'] );
-                          
-                        foreach ($package['destination'] as $key => $value) {
-                          $message .= '<br>'.$key.'   :   '.$value;
-                        }
-                        $messageType = "error";
- 
-                        if( ! wc_has_notice( $message, $messageType ) ) {
-                         
-                            wc_add_notice( $message, $messageType );
-                      
-                        }
-
-                }
-            }       
-        }*/
-    }
- 
+    add_filter( 'woocommerce_shipping_methods', 'add_mis_local_shipping_method' ); 
     add_action( 'woocommerce_review_order_before_cart_contents', 'mis_shippining_validate_order' , 10 );
     add_action( 'woocommerce_after_checkout_validation', 'mis_shippining_validate_order' , 10 );
 }
@@ -180,19 +118,22 @@ add_action('wp_ajax_mis_city_edit', 'mis_city_edit_callback');
 add_action('wp_ajax_nopriv_mis_city_edit', 'mis_city_edit_callback');
 
 function mis_city_edit_callback(){
+  WC()->customer->__set('pickup_cost', '');
+  WC()->customer->__set('pickup_point', '');
+  set_transient('mis_pickup_cost', 0, HOUR_IN_SECONDS);
     $url = 'http://cabinet.ddelivery.ru:80/daemon/?_action=autocomplete&q=' . $_POST['city'];
     $args = array();
     $res = wp_remote_get($url, $args);
     $answer = wp_remote_retrieve_body($res);
 
   echo $answer;
+  wp_die();
 }
 
 add_action('wp_ajax_mis_map_point', 'mis_map_point_callback');
 add_action('wp_ajax_nopriv_mis_map_point', 'mis_map_point_callback');
 
 function mis_map_point_callback(){
-
   $args = $_POST['city_ids'];
   $args = explode( '|', $args);
 
@@ -218,16 +159,19 @@ function mis_map_point_callback(){
     }
   }
 
-  //set_transient( 'map_points', $answer, HOUR_IN_SECONDS );
   echo json_encode( $answer );
+  wp_die();
 }
 
-add_action('wp_ajax_mis_empty_point', 'mis_empty_point_callback');
-add_action('wp_ajax_nopriv_mis_empty_point', 'mis_empty_point_callback');
+add_action('wp_ajax_mis_edit_shipping', 'mis_edit_shipping_callback');
+add_action('wp_ajax_nopriv_mis_edit_shipping', 'mis_edit_shipping_callback');
 
-function mis_empty_point_callback(){
-  set_transient( 'map_points', array(), HOUR_IN_SECONDS );
-  echo get_transient( 'map_points' );
+function mis_edit_shipping_callback(){
+  WC()->customer->__set('pickup_cost', $_POST['mis_price']);
+  set_transient('mis_pickup_cost', $_POST['mis_price'], HOUR_IN_SECONDS);
+  WC()->customer->__set('pickup_point', $_POST['mis_address']);
+  echo WC()->customer->__get('pickup_point');
+  wp_die();
 }
 
 add_action('wp_ajax_mis_map_edit', 'mis_map_edit_callback');
@@ -254,7 +198,7 @@ function mis_map_edit_callback(){
   $pickup = array();
 
   foreach ($city_arr as $key => $city) {
-    $url = 'http://cabinet.ddelivery.ru/api/v1/' .
+    $url = 'http://cabinet.ddelivery.ru:80/api/v1/' .
               get_option("mis_api_ddelivery") . '/calculator.json?' .
               'type=1&' .
               'city_to=' . $city .'&' .
@@ -265,8 +209,7 @@ function mis_map_edit_callback(){
               'declared_price=' . $payment_price . '&' .
               'payment_price=' . $payment_price;
     $args = array();
-    $res = wp_remote_get($url, $args);
-    $res = wp_remote_retrieve_body($res);
+    $res = file_get_contents($url);
     array_push( $pickup, json_decode($res) );
   }
 
@@ -286,6 +229,7 @@ function mis_map_edit_callback(){
   }
 
   echo json_encode( $answer );
+  wp_die();
 }
 
 function custom_override_checkout_fields ( $fields ) {
@@ -305,6 +249,16 @@ function custom_override_checkout_fields ( $fields ) {
 } // End custom_override_checkout_fields()
 
 add_filter( 'woocommerce_checkout_fields' , 'custom_override_checkout_fields' );
+
+function custom_shipping_package_fields ( $package ) {
+
+  $package[0]['destination']['mis_custom_shipping_cost'] = WC()->customer->__get('pickup_cost');
+  $package[0]['destination']['mis_custom_shipping_point'] = WC()->customer->__get('pickup_point');
+
+  return $package;
+}
+
+add_filter( 'woocommerce_cart_shipping_packages', 'custom_shipping_package_fields' );
 
 add_action( 'wp_enqueue_scripts', 'mis_shippining_plugin_scripts' );
 
