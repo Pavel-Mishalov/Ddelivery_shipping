@@ -44,7 +44,7 @@ function mis_edit_city(value){
             }
           );
         jQuery('body.woocommerce-checkout #billing_one_field select').removeAttr('disabled');
-        jQuery('body').trigger('update_checkout');
+        setTimeout( "jQuery('body').trigger('update_checkout')", 1000 );
       }
     });
   }
@@ -58,17 +58,27 @@ function mis_edit_state(select){
       }
     );
 
-  var data = {
+  var mis_data = {
       action: 'mis_map_point',
       city_ids: select,
     }
 
-    jQuery.post(
-      "\/wp-admin\/admin-ajax.php",
-      data,
-      function(res){
+    jQuery.ajax({
+      method: "POST",
+      url : "\/wp-admin\/admin-ajax.php",
+      data : mis_data,
+      beforeSend: function(){
+        setTimeout(function(){
+          jQuery('table.shop_table.woocommerce-checkout-review-order-table').css('position', 'relative');
+          jQuery('table.shop_table.woocommerce-checkout-review-order-table').append('<div id="mis_ajax" class="blockUI blockOverlay" style="z-index: 1000; border: medium none; margin: 0px; padding: 0px; width: 100%; height: 100%; top: 0px; left: 0px; background: rgb(255, 255, 255) none repeat scroll 0% 0%; opacity: 0.6; cursor: default; position: absolute;"></div>');
+        }, 1000);
+      },
+      success : function(res){
+        jQuery('table.shop_table.woocommerce-checkout-review-order-table').removeAttr('style');
+        jQuery('#mis_ajax').remove();
+        jQuery('body').trigger('update_checkout');
       }
-    );
+    });
 }
 
 function destMap(){
@@ -91,11 +101,9 @@ function get_point(price, address){
       data,
       function(res){
         console.log(res);
-        alert('good');
+        jQuery('body').trigger('update_checkout');
       }
     );
-
-  jQuery('body').trigger('update_checkout');
 }
 
 jQuery( document ).ready( function ( $ ) {
@@ -120,6 +128,7 @@ jQuery( document ).ready( function ( $ ) {
       });
   $('body').append('<div class="map">'+
   '<div id="all-map">'+
+    '<div id="png_before" style="background: #fff;position: absolute;width: 100%;height: 100%;top: 0;z-index: 1;background-image: url(\'https://sdk.ddelivery.ru/assets/module/img/loader-2.gif\');background-repeat: no-repeat;background-position: center;"></div>' +
     '<div id="map-close">'+
       '<p>Выберите точку самовывоза</p>'+
       '<p class="mis-close-icon" onclick="destMap();">&times;</p>'+
