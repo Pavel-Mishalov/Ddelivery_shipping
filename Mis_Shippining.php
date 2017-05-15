@@ -89,7 +89,7 @@ if ( in_array( 'woocommerce/woocommerce.php', apply_filters( 'active_plugins', g
 
                   if( $package['destination']['state'] != 'Выберите область...' &&
                       $package['destination']['state'] != '' &&
-                      !empty( get_transient('map_points')[0]->points[0]->company_id  ) ){
+                      !empty( get_transient('map_points_' . $userID)[0]->points[0]->company_id  ) ){
                     $rate = array(
                           'id' => $this->id,
                           'label' => $this->title . $pickup_point,
@@ -159,7 +159,8 @@ if ( in_array( 'woocommerce/woocommerce.php', apply_filters( 'active_plugins', g
 
                 public function calculate_shipping( $package = array() )
                 {
-                  $userID = $package['user']['ID'];
+$this->add_rate( array('id'=>$this->id,'label'=>'курьер','cost'=>200)  );
+                  /*$userID = $package['user']['ID'];
                   if( $package['destination']['state'] != 'Выберите область...' &&
                       $package['destination']['state'] != '' &&
                       !empty($package['destination']['ddelivery_company_' . $userID]) ):
@@ -174,7 +175,7 @@ if ( in_array( 'woocommerce/woocommerce.php', apply_filters( 'active_plugins', g
                       $this->add_rate( $rate );
                     }
                   }
-                  endif;
+                  endif;*/
                 }
             }
         }
@@ -203,7 +204,6 @@ function mis_city_edit_callback(){
   set_transient( 'ddelivery_company_' . get_current_user_id(), '', HOUR_IN_SECONDS );
 
     $url = 'http://cabinet.ddelivery.ru:80/daemon/?_action=autocomplete&q=' . $_POST['city'];
-    $args = array();
     $answer = file_get_contents($url);
 
   echo $answer;
@@ -251,13 +251,10 @@ function mis_map_point_callback(){
       array_push( $delivery_company, array('company'=>$value->delivery_company_name, 'price'=>$value->total_price) );
     }
   //}
-
   set_transient( 'ddelivery_company_' . get_current_user_id(), $delivery_company, HOUR_IN_SECONDS );
-
   $answer = array();
   foreach( $args as $key=>$value ){
     $url = 'http://stage.ddelivery.ru/daemon/?_action=delivery_points&cities=' . $value;
-    $args = array();
     $res = file_get_contents($url);
     array_push( $answer, json_decode($res) );
   }
@@ -284,7 +281,7 @@ add_action('wp_ajax_nopriv_mis_edit_shipping', 'mis_edit_shipping_callback');
 function mis_edit_shipping_callback(){
   set_transient('pickup_cost_' . get_current_user_id(), $_POST['mis_price'], HOUR_IN_SECONDS);
   set_transient('pickup_point_' . get_current_user_id(), $_POST['mis_address'], HOUR_IN_SECONDS);
-  echo get_transient('pickup_point');
+  echo get_transient('pickup_point' . get_current_user_id());
   wp_die();
 }
 
@@ -322,12 +319,11 @@ function mis_map_edit_callback(){
               'weight=' . $weight . '&' .
               'declared_price=' . $payment_price . '&' .
               'payment_price=' . $payment_price;
-    $args = array();
     $res = file_get_contents($url);
     array_push( $pickup, json_decode($res) );
   }
 
-  $points = get_transient('map_points');
+  $points = get_transient('map_points_' . get_current_user_id());
 
   foreach ( $points[0]->points as $key => $value ) {
     foreach ($pickup as $k => $v) {
@@ -352,9 +348,12 @@ function custom_override_checkout_fields ( $fields ) {
   $fields['billing']['billing_one']['type'] = 'country';
   $fields['billing']['billing_one']['class'] = $fields['billing']['billing_country']['class'];
   //$fields['billing']['billing_postcode'] ='';
-  $fields['billing']['billing_postcode']['class'][] = 'mis_field_hidden';
-  //$fields['billing']['billing_company'] = '';
+  //$fields['billing']['billing_postcode']['class'][] = 'mis_field_hidden';
+  $fields['billing']['billing_address_2']['class'][] = 'mis_field_hidden';
+  $fields['billing']['billing_country']['required'] = false;
+  //$fields['billing']['billing_company']['type'] = 'text';
   $fields['billing']['billing_company']['class'][] = 'mis_field_hidden';
+  $fields['billing']['billing_country']['class'][] = 'mis_field_hidden';
   $fields['billing']['billing_pickup']['class'] = array('update_totals_on_change', 'mis_field_hidden');
   $fields['billing']['billing_pickup']['type'] = 'text';
   //$fields['shipping'] = '';

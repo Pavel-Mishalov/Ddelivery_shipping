@@ -137,6 +137,6 @@
   cursor: pointer
 }
 
-body.woocommerce-cart.woocommerce-page table tr.shipping, body.woocommerce-cart.woocommerce-page table tr.order-subtotal{
+body.woocommerce-cart.woocommerce-page table tr.shipping, body.woocommerce-cart.woocommerce-page table tr.order-subtotal, body.woocommerce-cart.woocommerce-page table tr.cart-subtotal{
   display: none;
 }
